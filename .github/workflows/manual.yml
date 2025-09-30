@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Check server availability (ping)
         run: |
-          if ! ping -c 2 yourserver.com > /dev/null 2>&1; then
+          if ! ping -c 2stage.auckland.citycompass.io > /dev/null 2>&1; then
             echo "Server is down" >> result.log
             echo "status=down" >> $GITHUB_ENV
           else
@@ -22,7 +22,7 @@ jobs:
 
       - name: Check SSL certificate expiration
         run: |
-          expiry_date=$(echo | openssl s_client -servername yourserver.com -connect yourserver.com:443 2>/dev/null \
+          expiry_date=$(echo | openssl s_client -servername stage.auckland.citycompass.io -connect stage.auckland.citycompass.io:443 2>/dev/null \
             | openssl x509 -noout -enddate | cut -d= -f2)
           expiry_sec=$(date -d "$expiry_date" +%s)
           now_sec=$(date +%s)
