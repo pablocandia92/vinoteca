@@ -1,0 +1,62 @@
+name: Monitor server health
+
+on:
+  schedule:
+    - cron: "*/30 * * * *" # corre cada 30 minutos
+  workflow_dispatch:       # también lo podes correr manualmente
+
+jobs:
+  check_server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check server availability (ping)
+        run: |
+          if ! ping -c 2 yourserver.com > /dev/null 2>&1; then
+            echo "Server is down" >> result.log
+            echo "status=down" >> $GITHUB_ENV
+          else
+            echo "Server is up"
+            echo "status=up" >> $GITHUB_ENV
+          fi
+
+      - name: Check SSL certificate expiration
+        run: |
+          expiry_date=$(echo | openssl s_client -servername yourserver.com -connect yourserver.com:443 2>/dev/null \
+            | openssl x509 -noout -enddate | cut -d= -f2)
+          expiry_sec=$(date -d "$expiry_date" +%s)
+          now_sec=$(date +%s)
+          days_left=$(( ($expiry_sec - $now_sec) / 86400 ))
+
+          echo "SSL expires in $days_left days"
+
+          if [ $days_left -lt 7 ]; then
+            echo "SSL certificate expiring soon: $days_left days left" >> result.log
+            echo "ssl=expiring" >> $GITHUB_ENV
+          else
+            echo "ssl=ok" >> $GITHUB_ENV
+          fi
+
+      - name: Prepare report if issues found
+        run: |
+          if [ "${{ env.status }}" = "down" ] || [ "${{ env.ssl }}" = "expiring" ]; then
+            echo "Issues detected. Sending report..."
+          else
+            echo "All good. Skipping email." > skip
+          fi
+
+      - name: Send email notification
+        if: ${{ !hashFiles('skip') }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.ethereal.email
+          server_port: 587
+          username: 'lura.beatty@ethereal.email'
+          password: 'pJ3RTBD4YQqzMEmjJZ'
+          subject: "Server Alert: yourserver.com"
+          to: "youremail@example.com"
+          from: "GitHub Actions <youremail@example.com>"
+          body: |
+            Alert from GitHub Actions:
+
+            $(cat result.log)
