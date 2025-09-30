@@ -44,6 +44,14 @@ jobs:
           else
             echo "All good. Skipping email." > skip
           fi
+      - name: Read result.log into env
+        id: readlog
+        run: |
+          content=$(cat result.log || echo "No issues log generated")
+          echo "log_content<<EOF" >> $GITHUB_ENV
+          echo "$content" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
 
       - name: Send email notification
         if: ${{ !hashFiles('skip') }}
@@ -53,10 +61,11 @@ jobs:
           server_port: 587
           username: 'lura.beatty@ethereal.email'
           password: 'pJ3RTBD4YQqzMEmjJZ'
-          subject: "Server Alert: yourserver.com"
+          subject: "Server Alert: stage.auckland.citycompass.io"
           to: "youremail@example.com"
-          from: "GitHub Actions <youremail@example.com>"
+          from: "GitHub Actions <alerts@github.com>"
           body: |
             Alert from GitHub Actions:
 
-            $(cat result.log)
+            ${{ env.log_content }}
+
